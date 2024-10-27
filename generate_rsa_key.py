@@ -1,29 +1,22 @@
-from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.primitives import serialization
+from Crypto.PublicKey import RSA
+import json
 import sqlite3
-import time
 
-# Generate an RSA private key
-private_key = rsa.generate_private_key(
-    public_exponent=65537,
-    key_size=2048
-)
+def generate_rsa_key():
+    key = RSA.generate(2048)
+    private_key = key.export_key()
+    public_key = key.publickey().export_key()
 
-# Serialize the private key in PEM format
-pem_private_key = private_key.private_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PrivateFormat.PKCS8,
-    encryption_algorithm=serialization.NoEncryption()
-)
+    # Save keys to the database
+    add_key_to_db("1", {
+        "e": key.e,
+        "n": key.n,
+        "alg": "RS256",
+        "kty": "RSA"
+    })
 
-# Connect to the SQLite database
-conn = sqlite3.connect('totally_not_my_privateKeys.db')
-cursor = conn.cursor()
+    return private_key, public_key
 
-# Insert the PEM-encoded private key and expiration into the database
-exp_time = int(time.time()) + 600  # Expires in 10 minutes
-cursor.execute("INSERT INTO keys (key, exp) VALUES (?, ?)", (pem_private_key, exp_time))
-conn.commit()
-conn.close()
+if __name__ == "__main__":
+    generate_rsa_key()
 
-print("RSA private key generated and saved to database.")
