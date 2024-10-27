@@ -1,21 +1,20 @@
-# setup_db.py
 import sqlite3
 
-# Connect to SQLite database (or create it if it doesn't exist)
-conn = sqlite3.connect('totally_not_my_privateKeys.db')
-cursor = conn.cursor()
+def setup_database():
+    conn = sqlite3.connect('totally_not_my_privateKeys.db')
+    cursor = conn.cursor()
 
-# Create the keys table
-cursor.execute('''
-CREATE TABLE IF NOT EXISTS keys (
-    kid INTEGER PRIMARY KEY AUTOINCREMENT,
-    key BLOB NOT NULL,
-    exp INTEGER NOT NULL
-)
-''')
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS keys (
+            id INTEGER PRIMARY KEY,
+            key_id TEXT NOT NULL,
+            key TEXT NOT NULL
+        )
+    ''')
 
-# Commit changes and close the connection
-conn.commit()
-conn.close()
+    conn.commit()
+    conn.close()
 
-print("Database and table 'keys' created successfully.")
+if __name__ == "__main__":
+    setup_database()
+
