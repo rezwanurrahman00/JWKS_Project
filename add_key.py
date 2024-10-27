@@ -1,29 +1,39 @@
-# add_key.py
 import sqlite3
-import time
-import os
+import json
 
-def add_key():
-    # Check if the database file exists
-    db_file = 'totally_not_my_privateKeys.db'
-    if not os.path.exists(db_file):
-        print("Database file does not exist. Please run the key generation first.")
-        return
-    
+def add_key_to_db(key_id, key):
     # Connect to the SQLite database
-    conn = sqlite3.connect(db_file)
+    conn = sqlite3.connect('totally_not_my_privateKeys.db')
     cursor = conn.cursor()
-    
-    # Define a real key and expiration time (10 minutes from now)
-    private_key = "your_real_private_key"  # Replace with actual key generation logic
-    exp_time = int(time.time()) + 600  # 10 minutes from now
-    
-    # Insert the key and expiration time into the database
-    cursor.execute("INSERT INTO keys (key, exp) VALUES (?, ?)", (private_key, exp_time))
+
+    # Ensure the keys table exists
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS keys (
+            id INTEGER PRIMARY KEY,
+            key_id TEXT NOT NULL,
+            key TEXT NOT NULL
+        )
+    ''')
+
+    # Insert the new key into the database
+    cursor.execute('''
+        INSERT INTO keys (key_id, key) VALUES (?, ?)
+    ''', (key_id, json.dumps(key)))  # Store key as JSON string
+
     conn.commit()
     conn.close()
-    print("Key added successfully.")
 
+# Example usage:
 if __name__ == "__main__":
-    add_key()
+    key_id = "1"  # Replace with your key id logic
+    key = {
+        "alg": "RS256",
+        "e": "65537",
+        "kid": key_id,
+        "kty": "RSA",
+        "n": "your_modulus_here",  # Use your modulus value
+        "use": "sig"
+    }
+    add_key_to_db(key_id, key)
+
 
