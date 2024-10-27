@@ -1,74 +1,42 @@
 from flask import Flask, jsonify, request
 import sqlite3
-import time
-import jwt
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.backends import default_backend
 
 app = Flask(__name__)
 
-def connect_db():
-    return sqlite3.connect('totally_not_my_privateKeys.db')
-
-def get_key_from_db(expired=False):
-    conn = connect_db()
-    cursor = conn.cursor()
-    current_time = int(time.time())
-    if expired:
-        cursor.execute("SELECT key FROM keys WHERE exp <= ?", (current_time,))
-    else:
-        cursor.execute("SELECT key FROM keys WHERE exp > ?", (current_time,))
-    key = cursor.fetchone()
-    conn.close()
-    return key[0] if key else None
-
 @app.route('/auth', methods=['POST'])
 def auth():
-    expired = request.args.get('expired', 'false').lower() == 'true'
-    private_key = get_key_from_db(expired=expired)
-    if not private_key:
-        return jsonify({"error": "No appropriate key found"}), 404
+    data = request.get_json()
+    token = data.get('token')
 
-    # Load private key from the database
-    private_key_obj = serialization.load_pem_private_key(
-        private_key,
-        password=None,
-        backend=default_backend()
-    )
+    # Validate the JWT (placeholder)
+    if not token:  # Add real JWT validation here
+        return jsonify({'error': 'Invalid token'}), 401
 
-    payload = {"user": "testuser", "exp": int(time.time()) + 600}  # JWT valid for 10 minutes
-    token = jwt.encode(payload, private_key_obj, algorithm='RS256')
-    return jsonify({"token": token})
+    # Here you can add your logic to authenticate the token and return a response
+    return jsonify({'message': 'Authenticated successfully'}), 200
 
 @app.route('/.well-known/jwks.json', methods=['GET'])
-def get_jwks():
-    conn = connect_db()
+def jwks():
+    conn = sqlite3.connect('totally_not_my_privateKeys.db')
     cursor = conn.cursor()
-    current_time = int(time.time())
-    cursor.execute("SELECT key FROM keys WHERE exp > ?", (current_time,))
+    cursor.execute('SELECT * FROM keys')
     keys = cursor.fetchall()
     conn.close()
 
-    jwks = []
-    for i, (key,) in enumerate(keys):
-        # Convert the private key to a public key and then serialize it to JSON Web Key (JWK) format
-        public_key_obj = serialization.load_pem_private_key(
-            key,
-            password=None,
-            backend=default_backend()
-        ).public_key()
-        
-        public_numbers = public_key_obj.public_numbers()
-        jwks.append({
-            "kid": str(i + 1),
+    # Construct JWKS response
+    jwks_keys = []
+    for key in keys:
+        jwks_keys.append({
+            "alg": "RS256",
+            "e": key[2]["e"],
+            "kid": key[1],
             "kty": "RSA",
-            "use": "sig",
-            "n": public_numbers.n,
-            "e": public_numbers.e,
-            "alg": "RS256"
+            "n": key[2]["n"],
+            "use": "sig"
         })
 
-    return jsonify({"keys": jwks})
+    return jsonify({'keys': jwks_keys}), 200
 
-if __name__ == '__main__':
-    app.run(port=8080, debug=True)
+if __name__ == "__main__":
+    app.run(debug=True, host='127.0.0.1', port=8080)
+
